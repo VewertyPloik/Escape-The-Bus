@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Choose Your Own Adventure</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #1a1a1a;
+      color: #fff;
+      padding: 20px;
+      max-width: 600px;
+      margin: auto;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    button {
+      display: block;
+      margin: 10px 0;
+      padding: 12px;
+      width: 100%;
+      background-color: #333;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #555;
+    }
+    #game, #adventure-select {
+      display: none;
+    }
+    #undo {
+      background-color: #900;
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Choose Your Own Adventure</h1>
+
+<div id="main-menu">
+  <h2>Select an Adventure</h2>
+  <button data-adventure="escapeBus">Escape the Bus</button>
+  <button data-adventure="hauntedMansion">Haunted Mansion</button>
+  <button data-adventure="spaceRescue">Space Rescue</button>
+</div>
+
+<div id="game">
+  <div id="screenText" style="min-height:150px; margin-bottom:20px;"></div>
+  <button id="choice1"></button>
+  <button id="choice2"></button>
+  <button id="undo">Undo</button>
+  <button id="backToMenu" style="margin-top: 10px; background:#222;">Back to Menu</button>
+</div>
+
+<script>
+const adventures = {
+  escapeBus: {
+    title: "Escape the Bus",
+    screens: {
+      1: {
+        text: "You wake up on an abandoned school bus. It's foggy outside.",
+        choice1: "Check the back of the bus",
+        choice2: "Step out the front door",
+        next: [2, 3]
+      },
+      2: {
+        text: "You head to the back. A window is open. Something creaks.",
+        choice1: "Jump out",
+        choice2: "Turn around",
+        next: [4, 5]
+      },
+      3: {
+        text: "You exit the bus and see a tall figure in the fog.",
+        choice1: "Hide behind the bus",
+        choice2: "Call out",
+        next: [6, 7]
+      },
+      4: { text: "You jump and land safely.", choice1: "Run", choice2: "Hide", next: [8, 9] },
+      5: { text: "You see a shadow through the fogged window.", choice1: "Duck", choice2: "Run", next: [10, 11] },
+      6: { text: "You hide. The figure walks past.", choice1: "Follow", choice2: "Stay hidden", next: [12, 13] },
+      7: { text: "The figure turns and walks toward you.", choice1: "Run", choice2: "Grab stick", next: [14, 15] },
+      8: { text: "You run and find a road.", choice1: "Follow it", choice2: "Hide in trees", next: [16, 17] },
+      9: { text: "You hide behind a tree.", choice1: "Stay", choice2: "Peek out", next: [18, 19] },
+      10: { text: "You duck under a seat.", choice1: "Stay", choice2: "Move", next: [20, 21] },
+      11: { text: "You run to the door.", choice1: "Exit", choice2: "Lock it", next: [22, 23] },
+      12: { text: "You follow quietly.", choice1: "Call to him", choice2: "Keep following", next: [24, 25] },
+      13: { text: "You stay put. He disappears.", choice1: "Leave hiding spot", choice2: "Wait longer", next: [26, 27] },
+      14: { text: "You run but trip.", choice1: "Get up", choice2: "Stay down", next: [28, 29] },
+      15: { text: "You grab a stick.", choice1: "Swing it", choice2: "Threaten him", next: [30, 31] },
+      16: { text: "The road leads to a gas station.", choice1: "Go inside", choice2: "Keep walking", next: [32, 33] },
+      17: { text: "You hide, but something is nearby.", choice1: "Run", choice2: "Climb a tree", next: [34, 35] },
+      18: { text: "You peek out. It's just the bus driver!", choice1: "Talk to him", choice2: "Stay quiet", next: [36, 37] },
+      19: { text: "You see nothing unusual.", choice1: "Walk out", choice2: "Wait", next: [38, 39] },
+      20: { text: "You hear footsteps.", choice1: "Call out", choice2: "Hold breath", next: [40, 41] },
+      21: { text: "You move and make a sound.", choice1: "Hide again", choice2: "Run", next: [42, 43] },
+      22: { text: "You escape to the outside.", choice1: "Run", choice2: "Look back", next: [44, 45] },
+      23: { text: "You lock the door.", choice1: "Hide", choice2: "Call for help", next: [46, 47] },
+      24: { text: "He hears you. It's the bus driver!", choice1: "Apologize", choice2: "Explain", next: [48, 49] },
+      25: { text: "You follow him to a road.", choice1: "Ask questions", choice2: "Stay silent", next: [48, 49] },
+      26: { text: "You exit the hiding spot.", choice1: "Search the bus", choice2: "Walk away", next: [48, 49] },
+      27: { text: "You wait... it's just quiet.", choice1: "Get up", choice2: "Lie down", next: [48, 49] },
+      28: { text: "You scramble up.", choice1: "Run", choice2: "Yell for help", next: [48, 49] },
+      29: { text: "You stay still. The figure passes.", choice1: "Move", choice2: "Sleep", next: [48, 49] },
+      30: { text: "You swing. The figure yells 'Wait!'", choice1: "Listen", choice2: "Run", next: [48, 49] },
+      31: { text: "You threaten him. He backs away.", choice1: "Run", choice2: "Talk", next: [48, 49] },
+      32: { text: "You're safe!", choice1: "Call home", choice2: "Eat snacks", next: [1, 1] },
+      33: { text: "You keep walking into town.", choice1: "Call police", choice2: "Rest", next: [1, 1] },
+      34: { text: "You run. Nothing follows.", choice1: "Keep running", choice2: "Stop", next: [1, 1] },
+      35: { text: "You climb and stay hidden.", choice1: "Climb down", choice2: "Sleep", next: [1, 1] },
+      36: { text: "The driver laughs. 'You okay kid?'", choice1: "Laugh back", choice2: "Cry", next: [1, 1] },
+      37: { text: "He shrugs and walks off.", choice1: "Follow", choice2: "Rest", next: [1, 1] },
+      38: { text: "You exit. All clear.", choice1: "Run", choice2: "Call out", next: [1, 1] },
+      39: { text: "You wait. Nothing happens.", choice1: "Get up", choice2: "Nap", next: [1, 1] },
+      40: { text: "A voice says, 'Relax, it’s me.'", choice1: "Peek out", choice2: "Answer", next: [1, 1] },
+      41: { text: "It walks away.", choice1: "Leave hiding", choice2: "Stay", next: [1, 1] }
+    }
+  },
+  hauntedMansion: {
+    title: "Haunted Mansion",
+    screens: {
+      1: { text: "You stand before an old mansion. The door creaks open.", choice1: "Enter", choice2: "Walk away", next: [2, 3] },
+      2: { text: "Inside, the air is cold. A staircase leads up.", choice1: "Climb stairs", choice2: "Explore ground floor", next: [4, 5] },
+      3: { text: "You decide to leave, but hear whispers.", choice1: "Investigate", choice2: "Run", next: [5, 6] },
+      4: { text: "On the stairs, you see a shadow.", choice1: "Approach", choice2: "Retreat", next: [7, 8] },
+      5: { text: "A door slams shut behind you.", choice1: "Open another door", choice2: "Hide", next: [9, 10] },
+      6: { text: "You trip and fall. Darkness surrounds you.", choice1: "Call for help", choice2: "Stay quiet", next: [11, 12] },
+      7: { text: "The shadow disappears. A diary lies nearby.", choice1: "Read diary", choice2: "Ignore it", next: [13, 14] },
+      8: { text: "You retreat and hear footsteps.", choice1: "Hide", choice2: "Run back downstairs", next: [10, 15] },
+      9: { text: "You find a locked room.", choice1: "Try to pick lock", choice2: "Keep searching", next: [16, 17] },
+      10: { text: "You hide. The footsteps pass.", choice1: "Come out", choice2: "Stay hidden", next: [18, 19] },
+      11: { text: "No response. You feel a chill.", choice1: "Light a candle", choice2: "Wait", next: [20, 21] },
+      12: { text: "You hear a whisper: 'Leave now.'", choice1: "Run", choice2: "Stay", next: [22, 23] },
+      13: { text: "Diary reveals secrets of the mansion.", choice1: "Investigate further", choice2: "Leave diary", next: [24, 25] },
+      14: { text: "You ignore it and move on.", choice1: "Go upstairs", choice2: "Explore basement", next: [26, 27] },
+      15: { text: "Back downstairs, a figure blocks your way.", choice1: "Talk", choice2: "Hide", next: [28, 29] },
+      16: { text: "Lock picks snap.", choice1: "Try door", choice2: "Search elsewhere", next: [30, 31] },
+      17: { text: "You find a secret passage.", choice1: "Enter", choice2: "Ignore", next: [32, 33] },
+      18: { text: "You come out. The mansion feels different.", choice1: "Explore", choice2: "Leave", next: [34, 35] },
+      19: { text: "Still hidden, you hear music.", choice1: "Follow sound", choice2: "Stay put", next: [36, 37] },
+      20: { text: "Candle lights a room filled with portraits.", choice1: "Look closely", choice2: "Extinguish candle", next: [38, 39] },
+      21: { text: "Waiting, you feel sleepy.", choice1: "Sleep", choice2: "Stay awake", next: [40, 41] },
+      22: { text: "You run outside. Safe for now.", choice1: "Go home", choice2: "Look back", next: [42, 43] },
+      23: { text: "You stay. Shadows close in.", choice1: "Scream", choice2: "Fight", next: [44, 45] },
+      24: { text: "Secrets reveal a hidden treasure.", choice1: "Search for it", choice2: "Ignore treasure", next: [46, 47] },
+      25: { text: "You leave diary. A gust of wind blows it away.", choice1: "Chase it", choice2: "Let it go", next: [48, 49] },
+      26: { text: "Basement is dark and damp.", choice1: "Light torch", choice2: "Go back", next: [50, 51] },
+      27: { text: "Upstairs, you find a locked chest.", choice1: "Open it", choice2: "Leave it", next: [52, 53] },
+      28: { text: "The figure smiles and vanishes.", choice1: "Follow", choice2: "Run", next: [54, 55] },
+      29: { text: "You hide and hear laughter.", choice1: "Call out", choice2: "Stay quiet", next: [56, 57] },
+      30: { text: "Door opens. You find a library.", choice1: "Read books", choice2: "Search desk", next: [58, 59] },
+      31: { text: "You search elsewhere and find stairs down.", choice1: "Go down", choice2: "Go up", next: [60, 61] },
+      32: { text: "Secret passage leads outside.", choice1: "Escape", choice2: "Go back", next: [62, 63] },
+      33: { text: "You ignore passage and stay.", choice1: "Explore more", choice2: "Rest", next: [64, 65] },
+      34: { text: "You explore the mansion more.", choice1: "Keep going", choice2: "Stop", next: [66, 67] },
+      35: { text: "You leave the mansion. Adventure ends.", choice1: "Play again", choice2: "Exit", next: ["menu", "exit"] },
+      // Add more as needed to make 20+ screens...
+    }
+  },
+  spaceRescue: {
+    title: "Space Rescue",
+    screens: {
+      1: { text: "Your spaceship alarm blares. An emergency beacon activates.", choice1: "Investigate beacon", choice2: "Ignore and continue mission", next: [2, 3] },
+      2: { text: "You approach a drifting ship.", choice1: "Dock with ship", choice2: "Scan from a distance", next: [4, 5] },
+      3: { text: "You keep flying, ignoring the alarm.", choice1: "Check systems", choice2: "Rest", next: [6, 7] },
+      4: { text: "Docked. The ship is empty.", choice1: "Explore", choice2: "Return to your ship", next: [8, 9] },
+      5: { text: "Scan shows life signs.", choice1: "Send rescue team", choice2: "Wait for response", next: [10, 11] },
+      6: { text: "Systems nominal.", choice1: "Proceed", choice2: "Investigate further", next: [12, 13] },
+      7: { text: "You rest. Suddenly lights flicker.", choice1: "Wake up", choice2: "Ignore", next: [14, 15] },
+      8: { text: "You find clues to the crew's fate.", choice1: "Follow clues", choice2: "Document and leave", next: [16, 17] },
+      9: { text: "Return. Your ship is damaged!", choice1: "Repair", choice2: "Call for help", next: [18, 19] },
+      10: { text: "Rescue team sent.", choice1: "Monitor", choice2: "Prepare for worst", next: [20, 21] },
+      11: { text: "No response yet.", choice1: "Send another team", choice2: "Keep waiting", next: [22, 23] },
+      12: { text: "You proceed. Warning lights flash.", choice1: "Investigate", choice2: "Ignore", next: [24, 25] },
+      13: { text: "Further investigation shows a malfunction.", choice1: "Fix it", choice2: "Report it", next: [26, 27] },
+      14: { text: "You wake and find emergency systems active.", choice1: "Take control", choice2: "Let autopilot continue", next: [28, 29] },
+      15: { text: "You ignore flickering and fall asleep.", choice1: "Wake up now", choice2: "Sleep longer", next: [30, 31] },
+      16: { text: "Following clues, you discover survivors.", choice1: "Rescue them", choice2: "Report location", next: [32, 33] },
+      17: { text: "You leave and return to base.", choice1: "Mission success", choice2: "Debrief", next: ["menu", "menu"] },
+      18: { text: "Repair underway.", choice1: "Keep working", choice2: "Abort repairs", next: [34, 35] },
+      19: { text: "Calling for help.", choice1: "Wait", choice2: "Try self-repair", next: [36, 37] },
+      20: { text: "Monitoring team progress.", choice1: "Prepare evacuation", choice2: "Stay alert", next: [38, 39] },
+      21: { text: "Preparing for worst-case scenario.", choice1: "Evacuate ship", choice2: "Hold position", next: [40, 41] },
+      22: { text: "Sending second team.", choice1: "Coordinate rescue", choice2: "Recall teams", next: [42, 43] },
+      23: { text: "Waiting patiently.", choice1: "Continue waiting", choice2: "Abort mission", next: [44, 45] },
+      24: { text: "Investigating warning lights.", choice1: "Fix problem", choice2: "Ignore", next: [46, 47] },
+      25: { text: "Ignoring warnings.", choice1: "Hope for the best", choice2: "Prepare for impact", next: [48, 49] },
+      26: { text: "Fixing malfunction.", choice1: "Success", choice2: "Fail", next: ["menu", "menu"] },
+      27: { text: "Reporting malfunction.", choice1: "Get assistance", choice2: "Wait for orders", next: ["menu", "menu"] },
+      28: { text: "Taking control.", choice1: "Stabilize ship", choice2: "Explore options", next: [50, 51] },
+      29: { text: "Letting autopilot.", choice1: "Trust system", choice2: "Override", next: [52, 53] },
+      30: { text: "Wake up now.", choice1: "Take control", choice2: "Stay asleep", next: [54, 55] },
+      31: { text: "Sleep longer.", choice1: "Wake eventually", choice2: "Never wake", next: ["menu", "menu"] },
+      32: { text: "Rescue successful.", choice1: "Celebrate", choice2: "Return home", next: ["menu", "menu"] },
+      33: { text: "Report location.", choice1: "Get help", choice2: "Wait", next: ["menu", "menu"] },
+      // Add more to reach 20+ screens here...
+    }
+  }
+};
+
+let currentAdventure = null;
+let currentScreen = 1;
+const history = [];
+
+const mainMenu = document.getElementById("main-menu");
+const game = document.getElementById("game");
+const screenText = document.getElementById("screenText");
+const btn1 = document.getElementById("choice1");
+const btn2 = document.getElementById("choice2");
+const undo = document.getElementById("undo");
+const backToMenu = document.getElementById("backToMenu");
+
+// Start selected adventure
+function startAdventure(adventureName) {
+  currentAdventure = adventures[adventureName];
+  currentScreen = 1;
+  history.length = 0;
+  mainMenu.style.display = "none";
+  game.style.display = "block";
+  loadScreen();
+}
+
+// Load current screen
+function loadScreen() {
+  const screen = currentAdventure.screens[currentScreen];
+  if (!screen) {
+    screenText.innerText = "The End.";
+    btn1.style.display = "none";
+    btn2.style.display = "none";
+    return;
+  }
+  screenText.innerText = screen.text;
+  btn1.innerText = screen.choice1;
+  btn2.innerText = screen.choice2;
+  btn1.style.display = "block";
+  btn2.style.display = "block";
+  btn1.disabled = false;
+  btn2.disabled = false;
+}
+
+// Handle choice clicks
+btn1.onclick = () => {
+  history.push(currentScreen);
+  currentScreen = currentAdventure.screens[currentScreen].next[0];
+  loadScreen();
+};
+btn2.onclick = () => {
+  history.push(currentScreen);
+  currentScreen = currentAdventure.screens[currentScreen].next[1];
+  loadScreen();
+};
+// Undo button
+undo.onclick = () => {
+  if (history.length > 0) {
+    currentScreen = history.pop();
+    loadScreen();
+  }
+};
+// Back to menu
+backToMenu.onclick = () => {
+  currentAdventure = null;
+  currentScreen = 1;
+  history.length = 0;
+  game.style.display = "none";
+  mainMenu.style.display = "block";
+};
+
+document.querySelectorAll('#main-menu button[data-adventure]').forEach(button => {
+  button.onclick = () => startAdventure(button.getAttribute('data-adventure'));
+});
+
+// Show main menu initially
+mainMenu.style.display = "block";
+game.style.display = "none";
+</script>
+
+</body>
+</html>
