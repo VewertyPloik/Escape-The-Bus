@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Desert Dash Clone</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Press+Start+2P&display=swap');
+  body {
+    margin: 0;
+    background: #222;
+    font-family: 'Press Start 2P', cursive;
+    color: #eee;
+    user-select: none;
+  }
+  #homeScreen, #gameScreen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+  }
+  #homeScreen {
+    background: linear-gradient(135deg, #f3c677, #f8e6c4);
+    color: #3a1d00;
+  }
+  #gameScreen {
+    position: relative;
+    overflow: hidden;
+    background: #222;
+  }
+  h1 {
+    font-family: 'Orbitron', monospace;
+    font-weight: 700;
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    letter-spacing: 3px;
+    text-shadow: 0 0 5px #f3c677;
+  }
+  button {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 1rem;
+    padding: 12px 20px;
+    margin: 8px 0;
+    cursor: pointer;
+    border: none;
+    border-radius: 6px;
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  button:hover {
+    background-color: #f3c677;
+    color: #3a1d00;
+  }
+  #modeButtons {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .modeButton {
+    width: 200px;
+    background-color: #e6c97d;
+    color: #3a1d00;
+    margin: 10px 0;
+    position: relative;
+  }
+  .modeButton span.highScore {
+    position: absolute;
+    right: -50px;  /* moved WAY over right */
+    top: 40px;     /* moved WAY down */
+    font-size: 1rem; /* bigger text */
+    color: #5a3d00;
+    font-weight: 700;
+  }
+  #gameContainer {
+    width: 800px;
+    height: 250px;
+    background: #444;
+    position: relative;
+    margin-top: 10px;
+    overflow: hidden;
+    border-radius: 8px;
+    box-shadow: 0 0 10px #000;
+  }
+  #gameCanvas {
+    background: #222;
+    display: block;
+    margin: 0 auto;
+    border-radius: 8px;
+  }
+  #scoreBoard {
+    color: #fff;
+    font-family: 'Orbitron', monospace;
+    font-size: 1.2rem;
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    width: 800px;
+  }
+
+  /* Jump Button - always visible */
+  #jumpButton {
+    display: flex !important;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 140px;
+    height: 140px;
+    background-color: #f3c677;
+    border-radius: 50%;
+    box-shadow: 0 0 25px #f3c677;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 1.6rem;
+    color: #3a1d00;
+    border: 3px solid #b8860b;
+    user-select: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    text-shadow: 0 0 3px #b8860b;
+  }
+  #jumpButton:active {
+    background-color: #d1a949;
+    box-shadow: 0 0 40px #d1a949;
+  }
+
+  /* Responsive canvas and scoreboard */
+  @media (max-width: 700px) {
+    #gameCanvas {
+      width: 100%;
+      height: auto;
+    }
+    #scoreBoard {
+      width: 100%;
+      padding: 0 10px;
+      font-size: 1rem;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div id="homeScreen">
+  <h1>DESERT DASH</h1>
+  <div id="modeButtons">
+    <!-- Buttons added by JS -->
+  </div>
+  <p style="margin-top:20px; font-size:0.8rem; color:#7a5b1f;">Press SPACE to jump during gameplay</p>
+</div>
+
+<div id="gameScreen" style="display:none;">
+  <canvas id="gameCanvas" width="800" height="250"></canvas>
+  <div id="scoreBoard">
+    <div>Score: <span id="currentScore">0</span></div>
+    <div>High Score: <span id="highScore">0</span></div>
+  </div>
+  <button id="jumpButton">JUMP</button>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const jumpButton = document.getElementById('jumpButton');
+
+  // Scenes configuration
+  const scenes = [
+    {
+      name: 'Desert',
+      obstacleEmoji: '🌵',
+      groundColor: '#d2b48c', // tan
+      highScoreKey: 'dd_desert_highscore',
+    },
+    {
+      name: 'Forest',
+      obstacleEmoji: '🪵',
+      groundColor: '#3a7d44', // green
+      highScoreKey: 'dd_forest_highscore',
+    },
+    {
+      name: 'Factory',
+      obstacleEmoji: '📦',
+      groundColor: '#666666', // gray
+      highScoreKey: 'dd_factory_highscore',
+    }
+  ];
+
+  const homeScreen = document.getElementById('homeScreen');
+  const gameScreen = document.getElementById('gameScreen');
+  const modeButtonsContainer = document.getElementById('modeButtons');
+  const currentScoreElem = document.getElementById('currentScore');
+  const highScoreElem = document.getElementById('highScore');
+
+  let currentSceneIndex = 0;
+  let highScores = [0, 0, 0];
+  let currentScore = 0;
+
+  // Player properties
+  const player = {
+    x: 100,
+    y: 0,
+    width: 40,
+    height: 60,
+    velocityY: 0,
+    jumpForce: 13,
+    gravity: 0.5,
+    grounded: false,
+    balloonBoost: false,
+    balloonTimer: 0,
+  };
+
+  // Obstacle properties
+  let obstacles = [];
+  let balloons = [];
+
+  // Game state
+  let gameSpeed = 6;
+  let spawnTimer = 0;
+  let balloonTimer = 0;
+  let isRunning = false;
+  let animationFrameId = null;
+
+  // Load high scores from localStorage
+  function loadHighScores() {
+    highScores = scenes.map(scene => {
+      return Number(localStorage.getItem(scene.highScoreKey)) || 0;
+    });
+  }
+
+  // Save high score for current scene
+  function saveHighScore() {
+    if (currentScore > highScores[currentSceneIndex]) {
+      highScores[currentSceneIndex] = currentScore;
+      localStorage.setItem(scenes[currentSceneIndex].highScoreKey, currentScore);
+    }
+  }
+
+  // Draw ground with scene color
+  function drawGround() {
+    ctx.fillStyle = scenes[currentSceneIndex].groundColor;
+    ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+  }
+
+  // Draw player
+  function drawPlayer() {
+    ctx.font = '50px serif';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('🏃‍➡️', player.x, player.y + player.height);
+    if (player.balloonBoost) {
+      ctx.font = '30px serif';
+      ctx.fillText('🎈', player.x + 10, player.y + player.height - 40);
+    }
+  }
+
+  // Draw obstacles
+  function drawObstacles() {
+    ctx.font = '50px serif';
+    ctx.textBaseline = 'bottom';
+    for (const obs of obstacles) {
+      ctx.fillText(scenes[currentSceneIndex].obstacleEmoji, obs.x, canvas.height - 50);
+    }
+  }
+
+  // Draw balloons
+  function drawBalloons() {
+    ctx.font = '40px serif';
+    ctx.textBaseline = 'bottom';
+    for (const bal of balloons) {
+      ctx.fillText('🎈', bal.x, canvas.height - 50 - 40);
+    }
+  }
+
+  // Update player physics
+  function updatePlayer() {
+    if (!player.grounded) {
+      if (player.balloonBoost) {
+        player.velocityY += player.gravity * 0.1;
+        player.balloonTimer -= 1;
+        if (player.balloonTimer <= 0) player.balloonBoost = false;
+      } else {
+        player.velocityY += player.gravity;
+      }
+      player.y += player.velocityY;
+      const groundY = canvas.height - 50 - player.height;
+      if (player.y > groundY) {
+        player.y = groundY;
+        player.velocityY = 0;
+        player.grounded = true;
+      }
+    }
+  }
+
+  // Spawn obstacles randomly
+  function spawnObstacles() {
+    spawnTimer--;
+    if (spawnTimer <= 0) {
+      obstacles.push({ x: canvas.width + 20 });
+      spawnTimer = 60 + Math.floor(Math.random() * 40) - Math.floor(currentScore / 20);
+      if (spawnTimer < 30) spawnTimer = 30;
+    }
+  }
+
+  // Spawn balloons randomly
+  function spawnBalloons() {
+    balloonTimer--;
+    if (balloonTimer <= 0) {
+      if (Math.random() < 0.02) balloons.push({ x: canvas.width + 20 });
+      balloonTimer = 30 + Math.floor(Math.random() * 70);
+    }
+  }
+
+  // Update obstacles position
+  function updateObstacles() {
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+      obstacles[i].x -= gameSpeed;
+      if (obstacles[i].x < -50) obstacles.splice(i, 1);
+    }
+  }
+
+  // Update balloons position
+  function updateBalloons() {
+    for (let i = balloons.length - 1; i >= 0; i--) {
+      balloons[i].x -= gameSpeed;
+      if (balloons[i].x < -50) balloons.splice(i, 1);
+    }
+  }
+
+  // Collision detection helper
+  function rectIntersect(r1, r2) {
+    return !(r2.x > r1.x + r1.width ||
+             r2.x + r2.width < r1.x ||
+             r2.y > r1.y + r1.height ||
+             r2.y + r2.height < r1.y);
+  }
+
+  // Check collision with obstacles
+  function checkObstacleCollision() {
+    const playerBox = { x: player.x, y: player.y, width: player.width, height: player.height };
+    for (const obs of obstacles) {
+      const obsBox = { x: obs.x, y: canvas.height - 50 - 50, width: 40, height: 50 };
+      if (rectIntersect(playerBox, obsBox)) return true;
+    }
+    return false;
+  }
+
+  // Check collision with balloons
+  function checkBalloonCollision() {
+    const playerBox = { x: player.x, y: player.y, width: player.width, height: player.height };
+    for (let i = 0; i < balloons.length; i++) {
+      const bal = balloons[i];
+      const balBox = { x: bal.x, y: canvas.height - 50 - 40, width: 40, height: 40 };
+      if (rectIntersect(playerBox, balBox)) {
+        balloons.splice(i, 1);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Reset game state
+  function resetGame() {
+    obstacles = [];
+    balloons = [];
+    player.y = canvas.height - 50 - player.height;
+    player.velocityY = 0;
+    player.grounded = true;
+    player.balloonBoost = false;
+    player.balloonTimer = 0;
+    currentScore = 0;
+    gameSpeed = 6;
+    spawnTimer = 60;
+    balloonTimer = 30;
+  }
+
+  // Draw all game elements
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Background color by scene
+    if (currentSceneIndex === 0) ctx.fillStyle = '#ffe4b5'; // Desert
+    else if (currentSceneIndex === 1) ctx.fillStyle = '#b3e6b3'; // Forest
+    else ctx.fillStyle = '#999999'; // Factory
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    drawGround();
+    drawObstacles();
+    drawBalloons();
+    drawPlayer();
+  }
+
+  // Game update loop
+  function update() {
+    updatePlayer();
+    updateObstacles();
+    updateBalloons();
+
+    if (checkObstacleCollision()) {
+      isRunning = false;
+      saveHighScore();
+      showHomeScreen();
+      alert('Game Over! Your score: ' + currentScore);
+      return;
+    }
+
+    if (checkBalloonCollision()) {
+      player.balloonBoost = true;
+      player.balloonTimer = 120;
+      player.velocityY = -player.jumpForce * 0.8;
+      player.grounded = false;
+    }
+
+    currentScore++;
+    if (currentScore % 100 === 0) gameSpeed += 0.2;
+
+    currentScoreElem.textContent = currentScore;
+    highScoreElem.textContent = highScores[currentSceneIndex];
+
+    spawnObstacles();
+    spawnBalloons();
+  }
+
+  // Game loop with requestAnimationFrame
+  function gameLoop() {
+    if (!isRunning) return;
+    update();
+    draw();
+    animationFrameId = requestAnimationFrame(gameLoop);
+  }
+
+  // Start the game with selected scene
+  function startGame(sceneIndex) {
+    currentSceneIndex = sceneIndex;
+    resetGame();
+    homeScreen.style.display = 'none';
+    gameScreen.style.display = 'flex';
+    highScoreElem.textContent = highScores[currentSceneIndex];
+    currentScoreElem.textContent = '0';
+    isRunning = true;
+    animationFrameId = requestAnimationFrame(gameLoop);
+  }
+
+  // Show the home screen with mode buttons and high scores
+  function showHomeScreen() {
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = null;
+    }
+    isRunning = false;
+    gameScreen.style.display = 'none';
+    homeScreen.style.display = 'flex';
+
+    modeButtonsContainer.innerHTML = '';
+    loadHighScores();
+
+    scenes.forEach((scene, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'modeButton';
+      btn.textContent = scene.name;
+      const hsSpan = document.createElement('span');
+      hsSpan.className = 'highScore';
+      hsSpan.textContent = 'HS: ' + highScores[i];
+      btn.appendChild(hsSpan);
+      btn.onclick = () => startGame(i);
+      modeButtonsContainer.appendChild(btn);
+    });
+  }
+
+  // Handle jump input
+  function handleJump() {
+    if (!isRunning) return;
+    if (player.grounded || player.balloonBoost) {
+      player.velocityY = -player.jumpForce;
+      player.grounded = false;
+    }
+  }
+
+  // Keyboard event for jump
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      handleJump();
+    }
+  });
+
+  // Jump button click for mobile and desktop
+  jumpButton.addEventListener('touchstart', e => {
+    e.preventDefault();
+    console.log('Jump button tapped');  // debug log
+    handleJump();
+  });
+  jumpButton.addEventListener('mousedown', e => {
+    e.preventDefault();
+    console.log('Jump button clicked');  // debug log
+    handleJump();
+  });
+
+  // Start on home screen
+  showHomeScreen();
+
+})();
+</script>
+
+</body>
+</html>
